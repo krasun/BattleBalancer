@@ -74,7 +74,7 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
         /** @var Clan $clanB */
         @ list($clanA, $clanB) = array_values($clans);
 
-        $teamPlayers = $this->loadTeamPlayers([$clanA->getId(), $clanB->getId()]);
+        $teamPlayers = $this->loadTeamPlayers($battleConfig, [$clanA->getId(), $clanB->getId()]);
 
         return [
             new Team(new TeamInfo($clanA->getId()), $teamPlayers[$clanA->getId()]),
@@ -85,11 +85,12 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
     /**
      * Loads team players.
      *
+     * @param BattleConfig $battleConfig
      * @param Player[] $clanIds
      *
      * @return array
      */
-    private function loadTeamPlayers($clanIds)
+    private function loadTeamPlayers(BattleConfig $battleConfig, $clanIds)
     {
         $this->dispatcher->dispatch(Events::BEFORE_LOAD_TEAM_PLAYERS);
         $groupedClanMembers = $this->apiClient->loadClanMembers($clanIds);
@@ -98,7 +99,7 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
         $accountIds = $this->flattenMap($groupedClanMembers, function (ClanMember $member) {
             return $member->getAccountId();
         });
-        $playerTanks = $this->loadPlayerTanks($accountIds);
+        $playerTanks = $this->loadPlayerTanks($battleConfig, $accountIds);
 
         $players = [];
         /** @var ClanMember $clanMember */
@@ -118,11 +119,12 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
     /**
      * Loads player tanks.
      *
+     * @param BattleConfig $battleConfig
      * @param int[] $accountIds
      *
      * @return array
      */
-    private function loadPlayerTanks(array $accountIds)
+    private function loadPlayerTanks(BattleConfig $battleConfig, array $accountIds)
     {
         $this->dispatcher->dispatch(Events::BEFORE_LOAD_PLAYER_TANKS);
         $groupedTankStats = $this->apiClient->loadTankStats($accountIds);
@@ -146,6 +148,12 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
                 if (! isset($tanks[$tankId])) {
                     /** @var TankInfo $tankInfo */
                     $tankInfo = $tankInfos[$tankId];
+
+                    if ($tankInfo->getLevel() < $battleConfig->getMinTankLevel() ||
+                        $tankInfo->getLevel() > $battleConfig->getMaxTankLevel()) {
+                        continue;
+                    }
+
                     $tanks[$tankId] = new Tank(
                         $tankInfo->getTankId(),
                         $tankInfo->getLevel(),
