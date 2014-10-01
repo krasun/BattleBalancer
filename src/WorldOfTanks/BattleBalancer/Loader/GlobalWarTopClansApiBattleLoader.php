@@ -2,6 +2,7 @@
 
 namespace WorldOfTanks\BattleBalancer\Loader;
 
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use WorldOfTanks\Api\Client as ApiClient;
 use WorldOfTanks\Api\Model\Clan;
 use WorldOfTanks\Api\Model\ClanMember;
@@ -23,11 +24,17 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
     private $apiClient;
 
     /**
+     * @var EventDispatcherInterface
+     */
+    private $dispatcher;
+
+    /**
      * @param ApiClient $apiClient
      */
-    public function __construct(ApiClient $apiClient)
+    public function __construct(ApiClient $apiClient, EventDispatcherInterface $dispatcher)
     {
         $this->apiClient = $apiClient;
+        $this->dispatcher = $dispatcher;
     }
 
     /**
@@ -59,7 +66,10 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
     {
         $requiredTeamNum = 2;
         $requiredMemberNum = $battleConfig->getRequiredMemberNumPerTeam();
+        $this->dispatcher->dispatch(Events::BEFORE_LOAD_TEAMS);
         $clans = $this->loadClans($requiredTeamNum, $requiredMemberNum);
+        $this->dispatcher->dispatch(Events::TEAMS_LOADED);
+
         /** @var Clan $clanA */
         /** @var Clan $clanB */
         @ list($clanA, $clanB) = array_values($clans);
@@ -81,7 +91,9 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
      */
     private function loadTeamPlayers($clanIds)
     {
+        $this->dispatcher->dispatch(Events::BEFORE_LOAD_TEAM_PLAYERS);
         $groupedClanMembers = $this->apiClient->loadClanMembers($clanIds);
+        $this->dispatcher->dispatch(Events::TEAM_PLAYERS_LOADED);
 
         $accountIds = $this->flattenMap($groupedClanMembers, function (ClanMember $member) {
             return $member->getAccountId();
@@ -112,12 +124,16 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
      */
     private function loadPlayerTanks(array $accountIds)
     {
+        $this->dispatcher->dispatch(Events::BEFORE_LOAD_PLAYER_TANKS);
         $groupedTankStats = $this->apiClient->loadTankStats($accountIds);
+        $this->dispatcher->dispatch(Events::PLAYER_TANKS_LOADED);
+
+        $this->dispatcher->dispatch(Events::BEFORE_LOAD_TANKS);
         $tankIds = $this->flattenMap($groupedTankStats, function (TankStats $tankStats) {
             return $tankStats->getTankId();
         });
-
         $tankInfos = $this->apiClient->loadTankInfo($tankIds);
+        $this->dispatcher->dispatch(Events::TANKS_LOADED);
 
         $playerTanks = [];
         $tanks = [];

@@ -15,6 +15,6 @@ class Balancer
      */
     public function balance(Battle $battle)
     {
-        return $battle;
+
     }
 } 
