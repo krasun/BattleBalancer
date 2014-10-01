@@ -1,0 +1,8 @@
+<?php
+
+return [
+    'api_application_id' => 'demo',
+    'required_member_num_per_team' => 15,
+    'min_tank_level' => 4,
+    'max_tank_level' => 6
+];

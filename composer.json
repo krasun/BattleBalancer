@@ -1,0 +1,19 @@
+{
+    "name": "krasun/battle-balancer",
+    "description": "The battle balancer for \"World Of Tanks\"",
+    "type": "project",
+    "autoload": {
+        "psr-0": {
+            "": "src/"
+        }
+    },
+    "require": {
+        "pimple/pimple": "3.0.*@dev",
+        "symfony/event-dispatcher": "2.6.*@dev",
+        "symfony/console": "2.6.*@dev",
+        "guzzlehttp/guzzle": "4.*"
+    },
+    "config": {
+        "bin-dir": "bin"
+    }
+}

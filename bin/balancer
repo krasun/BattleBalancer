@@ -1,0 +1,11 @@
+#!/usr/bin/env php
+<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+require_once __DIR__ . '/../config/container.php';
+
+use Symfony\Component\Console\Application;
+
+$application = new Application($container['application_name']);
+$application->addCommands([$container['balancer_command']]);
+$application->run();

@@ -1,0 +1,4 @@
+/.idea/
+/vendor/
+!/bin/balancer
+/config/parameters.php
