@@ -2,36 +2,46 @@
 
 namespace WorldOfTanks\BattleBalancer\Balance;
 
-use WorldOfTanks\Api\Client as ApiClient;
-
-use WorldOfTanks\BattleBalancer\Model\Player;
 use WorldOfTanks\BattleBalancer\Model\PlayerTank;
 
-class SimpleBalanceWeightCalculator implements BalanceWeightCalculatorInterface
+class SimpleBalanceWeightCalculator extends BaseBalanceWeightCalculator
 {
-    /**
-     * @var ApiClient
-     */
-    private $apiClient;
-
-    /**
-     * @param ApiClient $apiClient
-     */
-    public function __construct(ApiClient $apiClient)
-    {
-        $this->apiClient = $apiClient;
-    }
-
     /**
      * {@inheritdoc}
      */
-    public function compute(Player $player, PlayerTank $playerTank)
+    public function computeWeight(
+        $markOfMastery,
+        $maxHealth,
+        $gunDamageMin,
+        $gunDamageMax,
+        $maxMarkOfMastery,
+        $overallMinHealth,
+        $overallMaxHealth,
+        $overallGunDamageMin,
+        $overallGunDamageMax
+    )
     {
-        if (! isset($this->currWeight)) {
-            $this->currWeight = 100000;
-        }
-        $this->currWeight -= mt_rand(0, 10);
+        // All impact weights must be between 0 and 1
+        $healthImpactWeight = 0.65;
+        $gunDamageImpactWeight = 0.8;
+        $markOfMasteryImpactWeight = 0.1;
 
-        return $this->currWeight;
+        // Scale all values to 0..1
+        $gunDamageMedium = ($gunDamageMin + $gunDamageMax) / 2;
+        $gunDamageNorm = $this->norm($gunDamageMedium, $overallGunDamageMin, $overallGunDamageMax);
+        $healthNorm = $this->norm($maxHealth, $overallMinHealth, $overallMaxHealth);
+        $markOfMasteryNorm = $this->norm($markOfMastery, 0, $maxMarkOfMastery);
+
+        // Calculate weight with impact
+        $weight =
+            $healthNorm * $healthImpactWeight
+            + $gunDamageNorm * $gunDamageImpactWeight
+            + $markOfMasteryNorm * $markOfMasteryImpactWeight
+        ;
+
+        // Scale to 0..1
+        $weightNorm = $this->norm($weight, 0, $healthImpactWeight + $gunDamageImpactWeight + $markOfMasteryImpactWeight);
+
+        return round($weightNorm, 3);
     }
 }

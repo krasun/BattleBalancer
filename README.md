@@ -3,7 +3,5 @@ Battle Balancer
 
 @todo: 
 
-- write balance compute algorithm;
-- share tank registry;
-
 - configure and set up vagrant
+- write installation doc and some thought notes;

@@ -5,6 +5,11 @@ namespace WorldOfTanks\Api\Model;
 class TankStats 
 {
     /**
+     * @link http://wargaming.net/developers/api_reference/wot/tanks/stats/
+     */
+    const MAX_MARK_OF_MASTERY = 5;
+
+    /**
      * @var int
      */
     private $tankId;

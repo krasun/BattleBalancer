@@ -9,6 +9,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 use WorldOfTanks\Api\Client as ApiClient;
+use WorldOfTanks\Api\Model\TankInfo;
 use WorldOfTanks\BattleBalancer\Balance\BalanceWeightCalculatorInterface;
 use WorldOfTanks\BattleBalancer\Balancer;
 use WorldOfTanks\BattleBalancer\Loader\BattleConfig;
@@ -160,6 +161,19 @@ class BalanceCommand extends Command
         $minTankLevel = $this->getIntOption($input, 'min-tank-level', $this->defaultBattleConfig->getMinTankLevel());
         $maxTankLevel = $this->getIntOption($input, 'max-tank-level', $this->defaultBattleConfig->getMaxTankLevel());
 
+        if (($minTankLevel < TankInfo::MIN_TANK_LEVEL) or ($minTankLevel > TankInfo::MAX_TANK_LEVEL)
+            or ($maxTankLevel < TankInfo::MIN_TANK_LEVEL) or ($maxTankLevel > TankInfo::MAX_TANK_LEVEL)
+        ) {
+            throw new \InvalidArgumentException(sprintf('Tank level must be between %s and %s',
+                TankInfo::MIN_TANK_LEVEL,
+                TankInfo::MAX_TANK_LEVEL
+            ));
+        }
+
+        if ($minTankLevel > $maxTankLevel) {
+            throw new \InvalidArgumentException('Max. tank level must be greater or equal to min. tank level');
+        }
+
         return (new BattleConfig())
             ->setRequiredMemberNumPerTeam($requiredPlayerNumPerTeam)
             ->setMinTankLevel($minTankLevel)
@@ -205,7 +219,7 @@ class BalanceCommand extends Command
     private function renderBattle(OutputInterface $output, Battle $battle)
     {
         $teamHeaders = [
-            'Id', 'Name', 'Members', 'Combats', 'Wins', 'Win rate', 'URL'
+            'Id', 'Members', 'Combats', 'Wins', 'Win rate', 'URL'
         ];
         $teamRows = [
             $this->buildTeamInfoTableRow($battle->getTeamA()->getTeamInfo()),
@@ -237,15 +251,8 @@ class BalanceCommand extends Command
 
     private function buildTeamInfoTableRow(TeamInfo $teamInfo)
     {
-        $teamInfoMaxNameLen = 40;
-        $teamName = mb_strlen($teamInfo->getName(), 'utf-8') > $teamInfoMaxNameLen
-            ? mb_substr($teamInfo->getName(), 0, $teamInfoMaxNameLen, 'utf-8') . '...'
-            : $teamInfo->getName()
-        ;
-
         return [
             $teamInfo->getId(),
-            $teamName,
             $teamInfo->getMembersCount(),
             $teamInfo->getCombatsCount(),
             $teamInfo->getWinsCount(),
@@ -268,8 +275,6 @@ class BalanceCommand extends Command
             foreach ($player->getTanks() as $playerTank) {
                 if ($playerTank->willPlay()) {
                     $selectedTank = $playerTank;
-
-                    echo 'break'.PHP_EOL;
                     break;
                 }
             }
@@ -283,7 +288,7 @@ class BalanceCommand extends Command
                 $selectedTank->getTank()->getMaxHealth(),
                 $selectedTank->getTank()->getGunDamageMin(),
                 $selectedTank->getTank()->getGunDamageMax(),
-                $this->balanceWeightCalculator->compute($player, $selectedTank),
+                $this->balanceWeightCalculator->compute($selectedTank),
                 $this->apiClient->generatePlayerUrl($player->getId()),
             ];
         }

@@ -4,6 +4,10 @@ namespace WorldOfTanks\Api\Model;
 
 class TankInfo 
 {
+    const MIN_TANK_LEVEL = 1;
+
+    const MAX_TANK_LEVEL = 10;
+
     /**
      * @var int
      */

@@ -81,7 +81,7 @@ class Balancer
             /** @var PlayerTank $playerTank */
             foreach ($player->getTanks() as $playerTank) {
                 $weights[] = new BalanceWeight(
-                    $this->weightCalculator->compute($player, $playerTank),
+                    $this->weightCalculator->compute($playerTank),
                     $team,
                     $player,
                     $playerTank

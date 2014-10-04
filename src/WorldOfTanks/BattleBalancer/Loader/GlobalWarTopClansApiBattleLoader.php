@@ -86,7 +86,7 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
         $satisfiedClans = [];
         $processedClanIds = [];
         $satisfiedTeamPlayers = [];
-        while ((count($satisfiedTeamPlayers) < self::TEAM_NUM) && (count($processedClanIds) < count($clans))) {
+        while ((count($satisfiedTeamPlayers) < self::TEAM_NUM) and (count($processedClanIds) < count($clans))) {
             // Take some random clans
             $randomClans = $this->takeNotProcessedRandomClans($clans, self::TEAM_NUM, $processedClanIds);
             $teamPlayers = $this->loadTeamPlayers($battleConfig, array_keys($randomClans));
@@ -188,8 +188,9 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
                     /** @var TankInfo $tankInfo */
                     $tankInfo = $tankInfos[$tankId];
 
-                    if ($tankInfo->getLevel() < $battleConfig->getMinTankLevel() ||
-                        $tankInfo->getLevel() > $battleConfig->getMaxTankLevel()) {
+                    if (($tankInfo->getLevel() < $battleConfig->getMinTankLevel()) or
+                        ($tankInfo->getLevel() > $battleConfig->getMaxTankLevel())
+                    ) {
                         continue;
                     }
 

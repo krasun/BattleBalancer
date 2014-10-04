@@ -11,9 +11,8 @@ interface BalanceWeightCalculatorInterface
      * Computes balance weight for player and his tank.
      *
      * @param Player $player
-     * @param PlayerTank $playerTank
      *
      * @return float
      */
-    function compute(Player $player, PlayerTank $playerTank);
+    function compute(PlayerTank $playerTank);
 } 

@@ -308,7 +308,7 @@ class Client
             }
 
             if (($result['error']['code'] == self::ERROR_CODE_UNAVAILABLE ||
-                $result['error']['code'] == self::ERROR_CODE_REQUEST_LIMIT_EXCEEDED) && $tryCount > 0
+                $result['error']['code'] == self::ERROR_CODE_REQUEST_LIMIT_EXCEEDED) and ($tryCount > 0)
             ) {
 
                 usleep(self::RETRY_INTERVAL_IN_MICROSECONDS);
