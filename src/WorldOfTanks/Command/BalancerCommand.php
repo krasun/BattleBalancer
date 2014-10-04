@@ -77,9 +77,16 @@ class BalancerCommand extends Command
         try {
             $battle = $this->battleLoader->load($this->battleConfig);
             $this->balancer->balance($battle);
+
         } catch (LoaderException $e) {
             $output->writeln(sprintf(
                 'Loader can`t load teams: "%s"! Try again or contact with developer: %s.',
+                $e->getMessage(),
+                $this->developerContacts
+            ));
+        } catch (\Exception $e) {
+            $output->writeln(sprintf(
+                'Something terrible has happened: "%s"! Try again or contact with developer: %s.',
                 $e->getMessage(),
                 $this->developerContacts
             ));
