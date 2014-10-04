@@ -6,10 +6,11 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Doctrine\Common\Cache\FilesystemCache;
 
 use WorldOfTanks\Api\Cache\Client as CachedApiClient;
-use WorldOfTanks\Command\BalancerCommand;
+use WorldOfTanks\Command\BalanceCommand;
 use WorldOfTanks\BattleBalancer\Loader\BattleConfig;
 use WorldOfTanks\BattleBalancer\Loader\GlobalWarTopClansApiBattleLoader;
 use WorldOfTanks\BattleBalancer\Balancer;
+use WorldOfTanks\Command\TankInfoCommand;
 
 $container = new Container();
 
@@ -23,12 +24,17 @@ $container['event_dispatcher'] = function () {
     return new EventDispatcher();
 };
 
+$container['tank_info_command'] = function ($c) {
+    return new TankInfoCommand(null, $c['api_client']);
+};
+
 $container['balancer_command'] = function ($c) {
-    return new BalancerCommand(
+    return new BalanceCommand(
         null,
         $c['battle_config'],
         $c['battle_loader'],
         $c['battle_balancer'],
+        $c['api_client'],
         $c['event_dispatcher'],
         $c['developer_contacts']
     );
@@ -37,7 +43,7 @@ $container['battle_loader'] = function ($c) {
     return new GlobalWarTopClansApiBattleLoader($c['api_client'], $c['event_dispatcher']);
 };
 $container['battle_balancer'] = function ($c) {
-    return new Balancer();
+    return new Balancer(new \WorldOfTanks\BattleBalancer\Balance\DummyBalanceWeightCalculator());
 };
 $container['battle_config'] = function ($c) {
     return (new BattleConfig())

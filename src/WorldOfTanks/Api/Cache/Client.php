@@ -44,39 +44,30 @@ class Client extends ApiClient
      */
     public function loadTankInfo($tankIds)
     {
-        $this->tryLoadTankRegistry();
+        $this->tryLoadTankRegistryFromCache();
 
         return $this->tankRegistry->getByIds($tankIds);
     }
 
-    private function tryLoadTankRegistry()
+    private function tryLoadTankRegistryFromCache()
     {
         if (! empty($this->tankRegistry)) {
+            // Already loaded
             return;
         }
 
         /** @var TankRegistry $tankRegistry */
         $tankRegistry = $this->cache->fetch(self::TANK_REGISTRY_CACHE_KEY);
         if (empty($tankRegistry)) {
-            $this->tankRegistry = $this->loadTankTankRegistry();
+            $this->tankRegistry = parent::loadTankTankRegistry();
         } else {
             $latestVersion = parent::loadTankInfoVersion();
             $this->tankRegistry = ($tankRegistry->getVersion() < $latestVersion)
-                ? $this->loadTankTankRegistry()
+                ? parent::loadTankTankRegistry()
                 : $tankRegistry
             ;
         }
 
         $this->cache->save(self::TANK_REGISTRY_CACHE_KEY, $this->tankRegistry, self::TANKS_INFO_LIFETIME);
-    }
-
-    /**
-     * @return TankRegistry
-     */
-    private function loadTankTankRegistry()
-    {
-        $tankIds = parent::loadAllTankIds();
-
-        return new TankRegistry(parent::loadTankInfoVersion(), parent::loadTankInfo($tankIds));
     }
 } 

@@ -14,6 +14,11 @@ class Player
     private $tanks;
 
     /**
+     * @var bool
+     */
+    private $willPlay = false;
+
+    /**
      * @param int $id
      * @param PlayerTank[]|array $tanks
      */
@@ -38,4 +43,24 @@ class Player
     {
         return $this->tanks;
     }
-} 
+
+    /**
+     * @param boolean $willPlay
+     *
+     * @return Player
+     */
+    public function setWillPlay($willPlay)
+    {
+        $this->willPlay = $willPlay;
+
+        return $this;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function willPlay()
+    {
+        return $this->willPlay;
+    }
+}

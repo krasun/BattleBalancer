@@ -50,4 +50,12 @@ class TankRegistry
     {
         return $this->version;
     }
+
+    /**
+     * @return array|TankInfo[]
+     */
+    public function all()
+    {
+        return $this->tankInfos;
+    }
 } 

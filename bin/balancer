@@ -7,5 +7,10 @@ require_once __DIR__ . '/../config/container.php';
 use Symfony\Component\Console\Application;
 
 $application = new Application($container['application_name']);
-$application->addCommands([$container['balancer_command']]);
+// Register commands
+foreach ($container->keys() as $id)  {
+    if (strrpos($id, 'command') !== false) {
+        $application->add($container[$id]);
+    }
+}
 $application->run();

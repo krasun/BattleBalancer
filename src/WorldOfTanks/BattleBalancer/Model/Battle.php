@@ -46,4 +46,12 @@ class Battle
     {
         return $this->teamB;
     }
+
+    /**
+     * @return BattleInfo
+     */
+    public function getBattleInfo()
+    {
+        return $this->battleInfo;
+    }
 } 

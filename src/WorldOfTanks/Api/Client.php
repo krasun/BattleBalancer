@@ -6,6 +6,7 @@ use GuzzleHttp\ClientInterface;
 use WorldOfTanks\Api\Model\Clan;
 use WorldOfTanks\Api\Model\ClanMember;
 use WorldOfTanks\Api\Model\TankInfo;
+use WorldOfTanks\Api\Model\TankRegistry;
 use WorldOfTanks\Api\Model\TankStats;
 
 /**
@@ -52,6 +53,11 @@ class Client
      * @var ClientInterface
      */
     private $httpClient;
+
+    /**
+     * @var int
+     */
+    private $requestNum = 0;
 
     /**
      * @param $apiUrl
@@ -217,6 +223,16 @@ class Client
     }
 
     /**
+     * @return TankRegistry
+     */
+    public function loadTankTankRegistry()
+    {
+        $tankIds = $this->loadAllTankIds();
+
+        return new TankRegistry($this->loadTankInfoVersion(), $this->loadTankInfo($tankIds));
+    }
+
+    /**
      * Sends request to WoT H1TTP API and returns data from decoded JSON as array, if
      * status was OK.
      *
@@ -238,6 +254,7 @@ class Client
         $response = $this->httpClient->get(self::URL . $methodName . '/', [
             'query' => $parameters
         ]);
+        $this->requestNum++;
 
         $result = $response->json();
         if ($result['status'] == self::STATUS_SUCCESSFUL) {
@@ -249,5 +266,15 @@ class Client
 
             return $this->callMethod($methodName, $parameters, $tryCount - 1);
         }
+
+        throw new \RuntimeException('Api error');
+    }
+
+    /**
+     * @return int
+     */
+    public function getRequestNum()
+    {
+        return $this->requestNum;
     }
 }

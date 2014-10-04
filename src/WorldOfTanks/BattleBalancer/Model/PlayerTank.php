@@ -15,6 +15,11 @@ class PlayerTank
     private $tank;
 
     /**
+     * @var bool
+     */
+    private $willPlay;
+
+    /**
      * @param int $markOfMastery
      * @param Tank $tank
      */
@@ -47,4 +52,24 @@ class PlayerTank
     {
         return $this->tank->getId();
     }
-} 
+
+    /**
+     * @param boolean $willBeUsed
+     *
+     * @return PlayerTank
+     */
+    public function setWillPlay($willBeUsed)
+    {
+        $this->willPlay = $willBeUsed;
+
+        return $this;
+    }
+
+    /**
+     * @return boolean
+     */
+    public function willBeUsed()
+    {
+        return $this->willPlay;
+    }
+}
