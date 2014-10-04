@@ -45,6 +45,7 @@ class Balancer
         });
 
         $teamPlayingPlayerNum = [];
+        $processedPlayers  = [];
         /** @var BalanceWeight $weight */
         foreach ($weights as $weight) {
             $teamId = $weight->getTeam()->getTeamInfo()->getId();
@@ -53,9 +54,15 @@ class Balancer
             }
 
             if ($teamPlayingPlayerNum[$teamId] < $battleConfig->getRequiredMemberNumPerTeam()) {
-                $weight->getPlayer()->setWillPlay(true);
+                $player = $weight->getPlayer();
+                if (isset($processedPlayers[$player->getId()])) {
+                    continue;
+                }
+
+                $player->setWillPlay(true);
                 $weight->getPlayerTank()->setWillPlay(true);
 
+                $processedPlayers[$player->getId()] = true;
                 $teamPlayingPlayerNum[$teamId]++;
             }
         }

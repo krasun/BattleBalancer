@@ -38,24 +38,18 @@ class Client extends ApiClient
 
     public function loadTankRegistry()
     {
+        if (! empty($this->tankRegistry)) {
+            return $this->tankRegistry;
+        }
+
         /** @var TankRegistry $tankRegistry */
         $tankRegistry = $this->cache->fetch(self::TANK_REGISTRY_CACHE_KEY);
-        if (empty($tankRegistry)) {
+        if (empty($tankRegistry) || ($tankRegistry->getVersion() < $this->loadTankInfoVersion())) {
             $tankRegistry = parent::loadTankRegistry();
             $this->cache->save(self::TANK_REGISTRY_CACHE_KEY, $tankRegistry, self::TANKS_INFO_LIFETIME);
-
-            $this->tankRegistry-= $tankRegistry;
-
-            return $tankRegistry;
         }
 
-        $latestVersion = $this->loadTankInfoVersion();
-        if ($tankRegistry->getVersion() < $latestVersion) {
-            $tankRegistry = parent::loadTankRegistry();
-            $this->cache->save(self::TANK_REGISTRY_CACHE_KEY, $tankRegistry, self::TANKS_INFO_LIFETIME);
-
-            return $tankRegistry;
-        }
+        $this->tankRegistry = $tankRegistry;
 
         return $tankRegistry;
     }

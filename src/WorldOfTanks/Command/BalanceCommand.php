@@ -205,7 +205,7 @@ class BalanceCommand extends Command
     private function renderBattle(OutputInterface $output, Battle $battle)
     {
         $teamHeaders = [
-            'Id', 'Name', 'Members count', 'Combats count', 'Wins count', 'Provinces count', 'Win rate', 'URL'
+            'Id', 'Name', 'Members', 'Combats', 'Wins', 'Win rate', 'URL'
         ];
         $teamRows = [
             $this->buildTeamInfoTableRow($battle->getTeamA()->getTeamInfo()),
@@ -237,15 +237,20 @@ class BalanceCommand extends Command
 
     private function buildTeamInfoTableRow(TeamInfo $teamInfo)
     {
+        $teamInfoMaxNameLen = 40;
+        $teamName = mb_strlen($teamInfo->getName(), 'utf-8') > $teamInfoMaxNameLen
+            ? mb_substr($teamInfo->getName(), 0, $teamInfoMaxNameLen, 'utf-8') . '...'
+            : $teamInfo->getName()
+        ;
+
         return [
             $teamInfo->getId(),
-            $teamInfo->getName(),
+            $teamName,
             $teamInfo->getMembersCount(),
             $teamInfo->getCombatsCount(),
             $teamInfo->getWinsCount(),
-            $teamInfo->getProvincesCount(),
             // Win rate
-            $teamInfo->getWinsCount() / $teamInfo->getCombatsCount(),
+            round($teamInfo->getWinsCount() / $teamInfo->getCombatsCount(), 2),
             $this->apiClient->generateClanUrl($teamInfo->getId())
         ];
     }
@@ -263,6 +268,8 @@ class BalanceCommand extends Command
             foreach ($player->getTanks() as $playerTank) {
                 if ($playerTank->willPlay()) {
                     $selectedTank = $playerTank;
+
+                    echo 'break'.PHP_EOL;
                     break;
                 }
             }

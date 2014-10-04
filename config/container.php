@@ -6,6 +6,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 use Doctrine\Common\Cache\FilesystemCache;
 
 use WorldOfTanks\Api\Cache\Client as CachedApiClient;
+use WorldOfTanks\BattleBalancer\Balance\SimpleBalanceWeightCalculator;
 use WorldOfTanks\Command\BalanceCommand;
 use WorldOfTanks\BattleBalancer\Loader\BattleConfig;
 use WorldOfTanks\BattleBalancer\Loader\GlobalWarTopClansApiBattleLoader;
@@ -46,8 +47,8 @@ $container['battle_loader'] = function ($c) {
 $container['battle_balancer'] = function ($c) {
     return new Balancer($c['battle_balance_calculator']);
 };
-$container['battle_balance_calculator'] = function () {
-    return new \WorldOfTanks\BattleBalancer\Balance\DummyBalanceWeightCalculator();
+$container['battle_balance_calculator'] = function ($c) {
+    return new SimpleBalanceWeightCalculator($c['api_client']);
 };
 $container['battle_config'] = function ($c) {
     return (new BattleConfig())
