@@ -8,6 +8,7 @@ use WorldOfTanks\Api\Model\Clan;
 use WorldOfTanks\Api\Model\ClanMember;
 use WorldOfTanks\Api\Model\TankInfo;
 use WorldOfTanks\Api\Model\TankStats;
+use WorldOfTanks\BattleBalancer\Loader\Event\LoadedTeamsEvent;
 use WorldOfTanks\BattleBalancer\Model\Battle;
 use WorldOfTanks\BattleBalancer\Model\BattleInfo;
 use WorldOfTanks\BattleBalancer\Model\Player;
@@ -18,6 +19,11 @@ use WorldOfTanks\BattleBalancer\Model\TeamInfo;
 
 class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
 {
+    /**
+     * We need only two teams.
+     */
+    const TEAM_NUM = 2;
+
     /**
      * @var ApiClient
      */
@@ -64,21 +70,50 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
      */
     private function loadTeams(BattleConfig $battleConfig)
     {
-        $requiredTeamNum = 2;
-        $requiredMemberNum = $battleConfig->getRequiredMemberNumPerTeam();
         $this->dispatcher->dispatch(Events::BEFORE_LOAD_TEAMS);
-        $clans = $this->loadClans($requiredTeamNum, $requiredMemberNum);
-        $this->dispatcher->dispatch(Events::TEAMS_LOADED);
+        $clans = $this->loadClans($battleConfig);
+        $this->dispatcher->dispatch(Events::TEAMS_LOADED, new LoadedTeamsEvent(count($clans)));
+
+        if (count($clans) < self::TEAM_NUM) {
+            throw new LoaderException(sprintf(
+                'At least two commands with %s members need to be loaded from API',
+                $battleConfig->getRequiredMemberNumPerTeam()
+            ));
+        }
+
+        // Try to load at least two teams with required players number and with players
+        // who at least have one required tank
+        $satisfiedClans = [];
+        $processedClanIds = [];
+        $satisfiedTeamPlayers = [];
+        while ((count($satisfiedTeamPlayers) < self::TEAM_NUM) && (count($processedClanIds) < count($clans))) {
+            // Take some random clans
+            $randomClans = $this->takeNotProcessedRandomClans($clans, self::TEAM_NUM, $processedClanIds);
+            $teamPlayers = $this->loadTeamPlayers($battleConfig, array_keys($randomClans));
+            // Find satisfied clans
+            foreach ($teamPlayers as $clanId => $players) {
+                if (count($players) >= $battleConfig->getRequiredMemberNumPerTeam()) {
+                    $satisfiedClans[$clanId] = $clans[$clanId];
+                    $satisfiedTeamPlayers[$clanId] = $players;
+                }
+                $processedClanIds[$clanId] = true;
+            }
+        }
+
+        if (count($satisfiedClans) < self::TEAM_NUM) {
+            throw new LoaderException(sprintf(
+                'Can`t find two clans with %s players who have at least one required tank',
+                $battleConfig->getRequiredMemberNumPerTeam()
+            ));
+        }
 
         /** @var Clan $clanA */
         /** @var Clan $clanB */
-        @ list($clanA, $clanB) = array_values($clans);
-
-        $teamPlayers = $this->loadTeamPlayers($battleConfig, [$clanA->getId(), $clanB->getId()]);
+        @ list($clanA, $clanB) = array_values($satisfiedClans);
 
         return [
-            new Team(new TeamInfo($clanA->getId()), $teamPlayers[$clanA->getId()]),
-            new Team(new TeamInfo($clanB->getId()), $teamPlayers[$clanB->getId()])
+            new Team(new TeamInfo($clanA->getId()), $satisfiedTeamPlayers[$clanA->getId()]),
+            new Team(new TeamInfo($clanB->getId()), $satisfiedTeamPlayers[$clanB->getId()])
         ];
     }
 
@@ -86,7 +121,7 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
      * Loads team players.
      *
      * @param BattleConfig $battleConfig
-     * @param Player[] $clanIds
+     * @param int $clanIds
      *
      * @return array
      */
@@ -106,9 +141,13 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
         foreach ($groupedClanMembers as $clanId => $clanMembers) {
             $players[$clanId] = [];
             foreach ($clanMembers as $clanMember) {
+                $tanks = $playerTanks[$clanMember->getAccountId()];
+                if (count($tanks) == 0) {
+                    continue;
+                }
                 $players[$clanId][] = new Player(
                     $clanMember->getAccountId(),
-                    $playerTanks[$clanMember->getAccountId()]
+                    $tanks
                 );
             }
         }
@@ -174,31 +213,52 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
     }
 
     /**
-     * @param int $requiredClanNum
-     * @param int $requiredMemberNum
+     * @param BattleConfig $battleConfig
      *
      * @return Clan[]
      */
-    private function loadClans($requiredClanNum, $requiredMemberNum)
+    private function loadClans(BattleConfig $battleConfig)
     {
         $clans = $this->apiClient->loadGlobalWarTopClans('globalmap', 'provinces_count');
-        $allowedClans = array_filter($clans, function (Clan $clan) use ($requiredMemberNum) {
-            return $clan->getMembersCount() >= $requiredMemberNum;
-        });
-        if (count($allowedClans) < $requiredClanNum) {
-            throw new \RuntimeException('Required number of clans with required number of members not found');
-        }
 
-        $selectedClans = [];
-        $allowedCount = count($allowedClans);
-        while (count($selectedClans) != $requiredClanNum) {
-            $randomIndex = mt_rand(0, $allowedCount - 1);
-            if (! isset($selectedClans[$randomIndex])) {
-                $selectedClans[$randomIndex] = $allowedClans[$randomIndex];
+        $suitableClans = [];
+        foreach ($clans as $clan) {
+            if ($clan->getMembersCount() >= $battleConfig->getRequiredMemberNumPerTeam()) {
+                $suitableClans[$clan->getId()] = $clan;
             }
         }
 
-        return $selectedClans;
+        return $suitableClans;
+    }
+
+    /**
+     * @param Clan[] $clans
+     * @param int $clanNum
+     * @param array $processedClanIds Key is clan id
+     *
+     * @return Clan[] Returns empty array if it can satisfy requirements
+     */
+    private function takeNotProcessedRandomClans($clans, $clanNum, $processedClanIds)
+    {
+        if ((count($clans) - count($processedClanIds) < $clanNum)) {
+            return [];
+        }
+
+        $randomClans = [];
+        $clanIds = array_keys($clans);
+
+        // No need for check for count($clans) - count($processedClans) >= $clanNum and
+        while (count($randomClans) != $clanNum) {
+            $randomIndex = mt_rand(0, count($clanIds) - 1);
+            $randomClanId = $clanIds[$randomIndex];
+            if (isset($processedClanIds[$randomClanId])) {
+                continue;
+            }
+
+            $randomClans[$randomClanId] = $clans[$randomClanId];
+        }
+
+        return $randomClans;
     }
 
     /**

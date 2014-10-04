@@ -11,6 +11,7 @@
         "pimple/pimple": "3.0.*@dev",
         "symfony/event-dispatcher": "2.6.*@dev",
         "symfony/console": "2.6.*@dev",
+        "doctrine/cache": "1.4.*@dev",
         "guzzlehttp/guzzle": "4.*"
     },
     "config": {

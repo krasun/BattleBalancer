@@ -1,7 +1,5 @@
 <?php
 
-$parameters = require_once __DIR__ . '/parameters.php';
-
 use Pimple\Container;
 use GuzzleHttp\Client as HttpClient;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -11,10 +9,10 @@ use WorldOfTanks\Command\BalancerCommand;
 use WorldOfTanks\BattleBalancer\Balancer;
 use WorldOfTanks\BattleBalancer\Loader\GlobalWarTopClansApiBattleLoader;
 
-
 $container = new Container();
 
 $container['application_name'] = 'balancer';
+$parameters = require_once __DIR__ . '/parameters.php';
 foreach ($parameters as $key => $value) {
     $container[$key] = $value;
 };
@@ -25,7 +23,12 @@ $container['event_dispatcher'] = function () {
 
 $container['balancer_command'] = function ($c) {
     return new BalancerCommand(
-        null, $c['battle_config'], $c['battle_loader'], $c['battle_balancer'], $c['event_dispatcher']
+        null,
+        $c['battle_config'],
+        $c['battle_loader'],
+        $c['battle_balancer'],
+        $c['event_dispatcher'],
+        $c['developer_contacts']
     );
 };
 $container['battle_loader'] = function ($c) {
