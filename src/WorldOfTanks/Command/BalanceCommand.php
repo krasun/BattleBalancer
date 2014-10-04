@@ -4,10 +4,12 @@ namespace WorldOfTanks\Command;
 
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 use WorldOfTanks\Api\Client as ApiClient;
+use WorldOfTanks\BattleBalancer\Balance\BalanceWeightCalculatorInterface;
 use WorldOfTanks\BattleBalancer\Balancer;
 use WorldOfTanks\BattleBalancer\Loader\BattleConfig;
 use WorldOfTanks\BattleBalancer\Loader\BattleLoaderInterface;
@@ -15,6 +17,7 @@ use WorldOfTanks\BattleBalancer\Loader\Event\LoadedTeamsEvent;
 use WorldOfTanks\BattleBalancer\Loader\Events as LoaderEvents;
 use WorldOfTanks\BattleBalancer\Loader\LoaderException;
 use WorldOfTanks\BattleBalancer\Model\Battle;
+use WorldOfTanks\BattleBalancer\Model\PlayerTank;
 use WorldOfTanks\BattleBalancer\Model\Team;
 use WorldOfTanks\BattleBalancer\Model\TeamInfo;
 
@@ -36,6 +39,11 @@ class BalanceCommand extends Command
     private $balancer;
 
     /**
+     * @var BalanceWeightCalculatorInterface
+     */
+    private $balanceWeightCalculator;
+
+    /**
      * @var ApiClient
      */
     private $apiClient;
@@ -55,17 +63,28 @@ class BalanceCommand extends Command
      * @param BattleConfig $defaultBattleConfig
      * @param BattleLoaderInterface $battleLoader
      * @param Balancer $balancer
+     * @param BalanceWeightCalculatorInterface $balanceWeightCalculator
      * @param ApiClient $apiClient
      * @param EventDispatcherInterface $dispatcher
      * @param string $developerContacts
      */
-    public function __construct($name, BattleConfig $defaultBattleConfig, BattleLoaderInterface $battleLoader, Balancer $balancer, ApiClient $apiClient, EventDispatcherInterface $dispatcher, $developerContacts)
+    public function __construct(
+        $name,
+        BattleConfig $defaultBattleConfig,
+        BattleLoaderInterface $battleLoader,
+        Balancer $balancer,
+        BalanceWeightCalculatorInterface $balanceWeightCalculator,
+        ApiClient $apiClient,
+        EventDispatcherInterface $dispatcher,
+        $developerContacts
+    )
     {
         parent::__construct($name);
 
         $this->defaultBattleConfig = $defaultBattleConfig;
         $this->battleLoader = $battleLoader;
         $this->balancer = $balancer;
+        $this->balanceWeightCalculator = $balanceWeightCalculator;
         $this->apiClient = $apiClient;
         $this->dispatcher = $dispatcher;
         $this->developerContacts = $developerContacts;
@@ -75,6 +94,9 @@ class BalanceCommand extends Command
     {
         $this
             ->setName('balancer:balance')
+            ->addOption('player-num', null, InputOption::VALUE_REQUIRED)
+            ->addOption('min-tank-level', null, InputOption::VALUE_REQUIRED)
+            ->addOption('max-tank-level', null, InputOption::VALUE_REQUIRED)
         ;
     }
 
@@ -86,17 +108,19 @@ class BalanceCommand extends Command
         $this->listenEventsAndNotify($output);
 
         try {
+            $battleConfig = $this->createBattleConfig($input);
+
             $output->writeln(sprintf(
                 'Start balancing battle for %s players per team with tank level between %s and %s...',
-                $this->defaultBattleConfig->getRequiredMemberNumPerTeam(),
-                $this->defaultBattleConfig->getMinTankLevel(),
-                $this->defaultBattleConfig->getMaxTankLevel()
+                $battleConfig->getRequiredMemberNumPerTeam(),
+                $battleConfig->getMinTankLevel(),
+                $battleConfig->getMaxTankLevel()
             ));
 
             $startTime = microtime(true);
 
-            $battle = $this->battleLoader->load($this->defaultBattleConfig);
-            $this->balancer->balance($this->defaultBattleConfig, $battle);
+            $battle = $this->battleLoader->load($battleConfig);
+            $this->balancer->balance($battleConfig, $battle);
 
             $endTime = microtime(true);
 
@@ -125,6 +149,22 @@ class BalanceCommand extends Command
                 $this->developerContacts
             ));
         }
+    }
+
+    /**
+     * @return BattleConfig
+     */
+    private function createBattleConfig(InputInterface $input)
+    {
+        $requiredPlayerNumPerTeam = $this->getIntOption($input, 'player-num', $this->defaultBattleConfig->getRequiredMemberNumPerTeam());
+        $minTankLevel = $this->getIntOption($input, 'min-tank-level', $this->defaultBattleConfig->getMinTankLevel());
+        $maxTankLevel = $this->getIntOption($input, 'max-tank-level', $this->defaultBattleConfig->getMaxTankLevel());
+
+        return (new BattleConfig())
+            ->setRequiredMemberNumPerTeam($requiredPlayerNumPerTeam)
+            ->setMinTankLevel($minTankLevel)
+            ->setMaxTankLevel($maxTankLevel)
+        ;
     }
 
     private function listenEventsAndNotify(OutputInterface $output)
@@ -164,13 +204,26 @@ class BalanceCommand extends Command
 
     private function renderBattle(OutputInterface $output, Battle $battle)
     {
-        $teamHeaders = ['Id'];
+        $teamHeaders = [
+            'Id', 'Name', 'Members count', 'Combats count', 'Wins count', 'Provinces count', 'Win rate', 'URL'
+        ];
         $teamRows = [
             $this->buildTeamInfoTableRow($battle->getTeamA()->getTeamInfo()),
             $this->buildTeamInfoTableRow($battle->getTeamB()->getTeamInfo())
         ];
 
-        $playerHeaders = ['Player id', 'Team id'];
+        $playerHeaders = [
+            'Player id',
+            'Team id',
+            'Tank name',
+            'Mastery',
+            'Level',
+            'Health',
+            'Dam. min',
+            'Dam. max',
+            'Weight',
+            'Player URL'
+        ];
         $playerRows = array_merge(
             $this->buildPlayerInfoTableRows($battle->getTeamA()),
             $this->buildPlayerInfoTableRows($battle->getTeamB())
@@ -184,7 +237,51 @@ class BalanceCommand extends Command
 
     private function buildTeamInfoTableRow(TeamInfo $teamInfo)
     {
-        return [ $teamInfo->getId() ];
+        return [
+            $teamInfo->getId(),
+            $teamInfo->getName(),
+            $teamInfo->getMembersCount(),
+            $teamInfo->getCombatsCount(),
+            $teamInfo->getWinsCount(),
+            $teamInfo->getProvincesCount(),
+            // Win rate
+            $teamInfo->getWinsCount() / $teamInfo->getCombatsCount(),
+            $this->apiClient->generateClanUrl($teamInfo->getId())
+        ];
+    }
+
+    private function buildPlayerInfoTableRows(Team $team)
+    {
+        $playerRows = [];
+        foreach ($team->getPlayers() as $player) {
+            if (! $player->willPlay()) {
+                continue;
+            }
+
+            /** @var PlayerTank $selectedTank */
+            $selectedTank = null;
+            foreach ($player->getTanks() as $playerTank) {
+                if ($playerTank->willPlay()) {
+                    $selectedTank = $playerTank;
+                    break;
+                }
+            }
+
+            $playerRows[] = [
+                $player->getId(),
+                $team->getTeamInfo()->getId(),
+                $selectedTank->getTank()->getName(),
+                $selectedTank->getMarkOfMastery(),
+                $selectedTank->getTank()->getLevel(),
+                $selectedTank->getTank()->getMaxHealth(),
+                $selectedTank->getTank()->getGunDamageMin(),
+                $selectedTank->getTank()->getGunDamageMax(),
+                $this->balanceWeightCalculator->compute($player, $selectedTank),
+                $this->apiClient->generatePlayerUrl($player->getId()),
+            ];
+        }
+
+        return $playerRows;
     }
 
     private function renderTable(OutputInterface $output, array $headers, array $rows)
@@ -197,23 +294,19 @@ class BalanceCommand extends Command
         $table->render($output);
     }
 
+    private function getIntOption(InputInterface $input, $optionName, $defaultValue)
+    {
+        if ($option = $input->getOption($optionName)) {
+            return (int) $option;
+        }
+
+        return $defaultValue;
+    }
+
     private function convert($size)
     {
         $unit = array('', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb');
 
         return @ round($size / pow(1024, ($i = floor(log($size, 1024)))), 2) . $unit[$i];
-    }
-
-    private function buildPlayerInfoTableRows(Team $team)
-    {
-        $playerRows = [];
-        foreach ($team->getPlayers() as $player) {
-            $playerRows[] = [
-                $player->getId(),
-                $team->getTeamInfo()->getId()
-            ];
-        }
-
-        return $playerRows;
     }
 }

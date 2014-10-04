@@ -3,6 +3,8 @@
 namespace WorldOfTanks\Api;
 
 use GuzzleHttp\ClientInterface;
+use GuzzleHttp\Exception\TransferException;
+use WorldOfTanks\Api\Exception\ApiException;
 use WorldOfTanks\Api\Model\Clan;
 use WorldOfTanks\Api\Model\ClanMember;
 use WorldOfTanks\Api\Model\TankInfo;
@@ -18,6 +20,10 @@ class Client
      * Basic URL for WoT API.
      */
     const URL = 'http://api.worldoftanks.ru/wot/';
+
+    const CLAN_URL_PATTERN = 'http://worldoftanks.ru/community/clans/%s/';
+
+    const PLAYER_URL_PATTERN = 'http://worldoftanks.ru/community/accounts/%s/';
 
     /**
      * Successful request to API.
@@ -38,6 +44,11 @@ class Client
      * Source is not available.
      */
     const ERROR_CODE_UNAVAILABLE = 504;
+
+    /**
+     * Request limit exceeded.
+     */
+    const ERROR_CODE_REQUEST_LIMIT_EXCEEDED = 407;
 
     /**
      * Retry interval in microseconds.
@@ -71,6 +82,30 @@ class Client
     }
 
     /**
+     * Generates HTTP URL for clan.
+     *
+     * @param $id
+     *
+     * @return string
+     */
+    public function generateClanUrl($id)
+    {
+        return sprintf(self::CLAN_URL_PATTERN, $id);
+    }
+
+    /**
+     * Generates HTTP URL for player.
+     *
+     * @param $id
+     *
+     * @return string
+     */
+    public function generatePlayerUrl($id)
+    {
+        return sprintf(self::PLAYER_URL_PATTERN, $id);
+    }
+
+    /**
      * Loads "Global war" top clans.
      *
      * Can be ordered by "wins_count", "combats_count" or "provinces_count".
@@ -83,14 +118,21 @@ class Client
     public function loadGlobalWarTopClans($mapId, $orderBy = 'wins_count', $limit = 100)
     {
         $result = $this->callMethod('globalwar/top', [
-            'fields' => 'clan_id,members_count',
+            'fields' => 'clan_id,name,wins_count,combats_count,provinces_count,members_count',
             'map_id' => $mapId,
             'order_by' => $orderBy
         ]);
 
         $clans = [];
         foreach ($result as $clanRow) {
-            $clans[] = new Clan($clanRow['clan_id'], $clanRow['members_count']);
+            $clans[] = new Clan(
+                $clanRow['clan_id'],
+                $clanRow['name'],
+                $clanRow['members_count'],
+                $clanRow['wins_count'],
+                $clanRow['combats_count'],
+                $clanRow['provinces_count']
+            );
         }
 
         return $clans;
@@ -163,40 +205,6 @@ class Client
     }
 
     /**
-     * Loads tanks information from encyclopedia.
-     *
-     * @param int|array $tankIds
-     *
-     * @return array
-     */
-    public function loadTankInfo($tankIds)
-    {
-        $tankIds = is_array($tankIds) ? $tankIds : [$tankIds];
-
-        $tankIdPacks = array_chunk(array_unique($tankIds), self::MAX_RECORD_NUM_PER_REQUEST);
-        $result = [];
-        foreach ($tankIdPacks as $ids) {
-            $result += $this->callMethod('encyclopedia/tankinfo', [
-                'tank_id' => join(',', $ids),
-                'fields' => 'tank_id,level,max_health,gun_damage_min,gun_damage_max'
-            ]);
-        }
-
-        $tankInfos = [];
-        foreach ($result as $tankId => $tankInfoRow) {
-            $tankInfos[$tankId] = new TankInfo(
-                $tankId,
-                $tankInfoRow['level'],
-                $tankInfoRow['max_health'],
-                $tankInfoRow['gun_damage_min'],
-                $tankInfoRow['gun_damage_max']
-            );
-        }
-
-        return $tankInfos;
-    }
-
-    /**
      * Timestamp when tanks information from encyclopedia was updated.
      *
      * @return int
@@ -225,11 +233,47 @@ class Client
     /**
      * @return TankRegistry
      */
-    public function loadTankTankRegistry()
+    public function loadTankRegistry()
     {
         $tankIds = $this->loadAllTankIds();
 
         return new TankRegistry($this->loadTankInfoVersion(), $this->loadTankInfo($tankIds));
+    }
+
+    /**
+     * Loads tanks information from encyclopedia.
+     *
+     * @param int|array $tankIds
+     *
+     * @return array
+     */
+    protected function loadTankInfo($tankIds)
+    {
+        $tankIds = is_array($tankIds) ? $tankIds : [$tankIds];
+
+        $tankIdPacks = array_chunk(array_unique($tankIds), self::MAX_RECORD_NUM_PER_REQUEST);
+        $result = [];
+        foreach ($tankIdPacks as $ids) {
+            $result += $this->callMethod('encyclopedia/tankinfo', [
+                'tank_id' => join(',', $ids),
+                'fields' => 'tank_id,localized_name,nation,level,max_health,gun_damage_min,gun_damage_max'
+            ]);
+        }
+
+        $tankInfos = [];
+        foreach ($result as $tankId => $tankInfoRow) {
+            $tankInfos[$tankId] = new TankInfo(
+                $tankId,
+                $tankInfoRow['localized_name'],
+                $tankInfoRow['nation'],
+                $tankInfoRow['level'],
+                $tankInfoRow['max_health'],
+                $tankInfoRow['gun_damage_min'],
+                $tankInfoRow['gun_damage_max']
+            );
+        }
+
+        return $tankInfos;
     }
 
     /**
@@ -246,28 +290,36 @@ class Client
      */
     protected function callMethod($methodName, $parameters = [], $tryCount = 3)
     {
-        $parameters = array_merge($parameters, [
-            'application_id' => $this->applicationId
-        ]);
+        try {
+            $parameters = array_merge($parameters, [
+                'application_id' => $this->applicationId
+            ]);
 
-        $methodName = str_replace('.', '/', $methodName);
-        $response = $this->httpClient->get(self::URL . $methodName . '/', [
-            'query' => $parameters
-        ]);
-        $this->requestNum++;
+            $methodName = str_replace('.', '/', $methodName);
+            $response = $this->httpClient->get(self::URL . $methodName . '/', [
+                'query' => $parameters
+            ]);
+            $this->requestNum++;
 
-        $result = $response->json();
-        if ($result['status'] == self::STATUS_SUCCESSFUL) {
-            return $result['data'];
+            $result = $response->json();
+
+            if ($result['status'] == self::STATUS_SUCCESSFUL) {
+                return $result['data'];
+            }
+
+            if (($result['error']['code'] == self::ERROR_CODE_UNAVAILABLE ||
+                $result['error']['code'] == self::ERROR_CODE_REQUEST_LIMIT_EXCEEDED) && $tryCount > 0
+            ) {
+
+                usleep(self::RETRY_INTERVAL_IN_MICROSECONDS);
+
+                return $this->callMethod($methodName, $parameters, $tryCount - 1);
+            }
+
+            throw new ApiException($result['error']['message'], $result['error']['code']);
+        } catch (TransferException $e) {
+            throw new ApiException($e->getMessage(), 0, $e);
         }
-
-        if ($result['error']['code'] == self::ERROR_CODE_UNAVAILABLE && $tryCount > 0) {
-            usleep(self::RETRY_INTERVAL_IN_MICROSECONDS);
-
-            return $this->callMethod($methodName, $parameters, $tryCount - 1);
-        }
-
-        throw new \RuntimeException('Api error');
     }
 
     /**

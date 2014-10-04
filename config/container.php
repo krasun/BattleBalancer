@@ -34,6 +34,7 @@ $container['balancer_command'] = function ($c) {
         $c['battle_config'],
         $c['battle_loader'],
         $c['battle_balancer'],
+        $c['battle_balance_calculator'],
         $c['api_client'],
         $c['event_dispatcher'],
         $c['developer_contacts']
@@ -43,7 +44,10 @@ $container['battle_loader'] = function ($c) {
     return new GlobalWarTopClansApiBattleLoader($c['api_client'], $c['event_dispatcher']);
 };
 $container['battle_balancer'] = function ($c) {
-    return new Balancer(new \WorldOfTanks\BattleBalancer\Balance\DummyBalanceWeightCalculator());
+    return new Balancer($c['battle_balance_calculator']);
+};
+$container['battle_balance_calculator'] = function () {
+    return new \WorldOfTanks\BattleBalancer\Balance\DummyBalanceWeightCalculator();
 };
 $container['battle_config'] = function ($c) {
     return (new BattleConfig())
@@ -62,4 +66,3 @@ $container['http_client'] = function () {
 $container['cache'] = function($c) {
     return new FilesystemCache($c['cache_dir']);
 };
-

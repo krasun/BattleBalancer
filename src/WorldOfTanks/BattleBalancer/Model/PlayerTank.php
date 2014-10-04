@@ -17,7 +17,7 @@ class PlayerTank
     /**
      * @var bool
      */
-    private $willPlay;
+    private $willPlay = false;
 
     /**
      * @param int $markOfMastery
@@ -68,7 +68,7 @@ class PlayerTank
     /**
      * @return boolean
      */
-    public function willBeUsed()
+    public function willPlay()
     {
         return $this->willPlay;
     }

@@ -112,8 +112,8 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
         @ list($clanA, $clanB) = array_values($satisfiedClans);
 
         return [
-            new Team(new TeamInfo($clanA->getId()), $satisfiedTeamPlayers[$clanA->getId()]),
-            new Team(new TeamInfo($clanB->getId()), $satisfiedTeamPlayers[$clanB->getId()])
+            $this->createTeam($clanA, $satisfiedTeamPlayers[$clanA->getId()]),
+            $this->createTeam($clanB, $satisfiedTeamPlayers[$clanB->getId()])
         ];
     }
 
@@ -173,7 +173,7 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
         $tankIds = $this->flattenMap($groupedTankStats, function (TankStats $tankStats) {
             return $tankStats->getTankId();
         });
-        $tankInfos = $this->apiClient->loadTankInfo($tankIds);
+        $tankInfos = $this->apiClient->loadTankRegistry()->getByIds($tankIds);
         $this->dispatcher->dispatch(Events::TANKS_LOADED);
 
         $playerTanks = [];
@@ -195,6 +195,8 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
 
                     $tanks[$tankId] = new Tank(
                         $tankInfo->getTankId(),
+                        $tankInfo->getName(),
+                        $tankInfo->getNation(),
                         $tankInfo->getLevel(),
                         $tankInfo->getMaxHealth(),
                         $tankInfo->getGunDamageMin(),
@@ -259,6 +261,21 @@ class GlobalWarTopClansApiBattleLoader implements BattleLoaderInterface
         }
 
         return $randomClans;
+    }
+
+    private function createTeam(Clan $clan, $players)
+    {
+        return new Team(
+            new TeamInfo(
+                $clan->getId(),
+                $clan->getName(),
+                $clan->getMembersCount(),
+                $clan->getWinsCount(),
+                $clan->getCombatsCount(),
+                $clan->getProvincesCount()
+            ),
+            $players
+        );
     }
 
     /**

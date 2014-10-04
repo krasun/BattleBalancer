@@ -10,6 +10,16 @@ class TankInfo
     private $tankId;
 
     /**
+     * @var string
+     */
+    private $name;
+
+    /**
+     * @var string
+     */
+    private $nation;
+
+    /**
      * @var int
      */
     private $level;
@@ -31,14 +41,18 @@ class TankInfo
 
     /**
      * @param int $tankId
+     * @param string $name
+     * @param string $nation
      * @param int $level
      * @param int $maxHealth
      * @param int $gunDamageMin
      * @param int $gunDamageMax
      */
-    public function __construct($tankId, $level, $maxHealth, $gunDamageMin, $gunDamageMax)
+    public function __construct($tankId, $name, $nation, $level, $maxHealth, $gunDamageMin, $gunDamageMax)
     {
         $this->tankId = $tankId;
+        $this->name = $name;
+        $this->nation = $nation;
         $this->level = $level;
         $this->maxHealth = $maxHealth;
         $this->gunDamageMin = $gunDamageMin;
@@ -51,6 +65,22 @@ class TankInfo
     public function getTankId()
     {
         return $this->tankId;
+    }
+
+    /**
+     * @return string
+     */
+    public function getName()
+    {
+        return $this->name;
+    }
+
+    /**
+     * @return string
+     */
+    public function getNation()
+    {
+        return $this->nation;
     }
 
     /**

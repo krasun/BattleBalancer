@@ -40,7 +40,7 @@ class TankInfoCommand extends Command
     {
         $tankInfoHeaders = ['tankId', 'level', 'maxHealth', 'gunDamageMin', 'gunDamageMax'];
 
-        $tankRegistry = $this->apiClient->loadTankTankRegistry();
+        $tankRegistry = $this->apiClient->loadTankRegistry();
         $tankInfoRows = [];
         /** @var TankInfo $tankInfo */
         foreach ($tankRegistry->all() as $tankInfo) {
