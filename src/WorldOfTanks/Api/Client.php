@@ -191,6 +191,32 @@ class Client
     }
 
     /**
+     * Timestamp when tanks information from encyclopedia was updated.
+     *
+     * @return int
+     */
+    public function loadTankInfoVersion()
+    {
+        $info = $this->callMethod('encyclopedia/info');
+
+        return $info['tanks_updated_at'];
+    }
+
+    /**
+     * Loads all tank identifiers from encyclopedia.
+     *
+     * @return int[]
+     */
+    public function loadAllTankIds()
+    {
+        $result = $this->callMethod('encyclopedia/tanks', ['fields' => 'tank_id']);
+
+        return array_map(function ($row) {
+            return $row['tank_id'];
+        }, $result);
+    }
+
+    /**
      * Sends request to WoT H1TTP API and returns data from decoded JSON as array, if
      * status was OK.
      *
@@ -202,7 +228,7 @@ class Client
      *
      * @return array
      */
-    protected function callMethod($methodName, $parameters, $tryCount = 3)
+    protected function callMethod($methodName, $parameters = [], $tryCount = 3)
     {
         $parameters = array_merge($parameters, [
             'application_id' => $this->applicationId

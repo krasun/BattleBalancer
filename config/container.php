@@ -3,11 +3,13 @@
 use Pimple\Container;
 use GuzzleHttp\Client as HttpClient;
 use Symfony\Component\EventDispatcher\EventDispatcher;
-use WorldOfTanks\Api\Client as ApiClient;
-use WorldOfTanks\BattleBalancer\Loader\BattleConfig;
+use Doctrine\Common\Cache\FilesystemCache;
+
+use WorldOfTanks\Api\Cache\Client as CachedApiClient;
 use WorldOfTanks\Command\BalancerCommand;
-use WorldOfTanks\BattleBalancer\Balancer;
+use WorldOfTanks\BattleBalancer\Loader\BattleConfig;
 use WorldOfTanks\BattleBalancer\Loader\GlobalWarTopClansApiBattleLoader;
+use WorldOfTanks\BattleBalancer\Balancer;
 
 $container = new Container();
 
@@ -46,9 +48,12 @@ $container['battle_config'] = function ($c) {
 };
 
 $container['api_client'] = function ($c) {
-    return new ApiClient($c['api_application_id'], $c['http_client']);
+    return new CachedApiClient($c['api_application_id'], $c['http_client'], $c['cache']);
 };
 $container['http_client'] = function () {
     return new HttpClient();
+};
+$container['cache'] = function($c) {
+    return new FilesystemCache($c['cache_dir']);
 };
 
