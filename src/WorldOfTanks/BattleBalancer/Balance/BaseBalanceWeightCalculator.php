@@ -21,6 +21,11 @@ abstract class BaseBalanceWeightCalculator implements BalanceWeightCalculatorInt
     private $tankRegistry;
 
     /**
+     * @var float[]
+     */
+    private $cachedComputations;
+
+    /**
      * @param ApiClient $apiClient
      */
     public function __construct(ApiClient $apiClient)
@@ -37,17 +42,24 @@ abstract class BaseBalanceWeightCalculator implements BalanceWeightCalculatorInt
             $this->tankRegistry = $this->apiClient->loadTankRegistry();
         }
 
-        return $this->computeWeight(
-            $playerTank->getMarkOfMastery(),
-            $playerTank->getTank()->getMaxHealth(),
-            $playerTank->getTank()->getGunDamageMin(),
-            $playerTank->getTank()->getGunDamageMax(),
-            TankStats::MAX_MARK_OF_MASTERY,
-            $this->tankRegistry->computeOverallMinHealth(),
-            $this->tankRegistry->computeOverallMaxHealth(),
-            $this->tankRegistry->computeOverallGunDamageMin(),
-            $this->tankRegistry->computeOverallGunDamageMax()
-        );
+        $tankId = $playerTank->getTankId();
+        $markOfMastery = $playerTank->getMarkOfMastery();
+        $cacheKey = $tankId . '-' . $markOfMastery;
+        if (! isset($this->cachedComputations[$cacheKey])) {
+            $this->cachedComputations[$cacheKey] = $this->computeWeight(
+                $playerTank->getMarkOfMastery(),
+                $playerTank->getTank()->getMaxHealth(),
+                $playerTank->getTank()->getGunDamageMin(),
+                $playerTank->getTank()->getGunDamageMax(),
+                TankStats::MAX_MARK_OF_MASTERY,
+                $this->tankRegistry->computeOverallMinHealth(),
+                $this->tankRegistry->computeOverallMaxHealth(),
+                $this->tankRegistry->computeOverallGunDamageMin(),
+                $this->tankRegistry->computeOverallGunDamageMax()
+            );
+        }
+
+        return $this->cachedComputations[$cacheKey];
     }
 
     /**

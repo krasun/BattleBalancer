@@ -22,8 +22,8 @@ class SimpleBalanceWeightCalculator extends BaseBalanceWeightCalculator
     )
     {
         // All impact weights must be between 0 and 1
-        $healthImpactWeight = 0.65;
-        $gunDamageImpactWeight = 0.8;
+        $healthImpactWeight = 0.85;
+        $gunDamageImpactWeight = 0.9;
         $markOfMasteryImpactWeight = 0.1;
 
         // Scale all values to 0..1
