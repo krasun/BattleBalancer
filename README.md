@@ -135,9 +135,3 @@ Example of output:
 You can specify minimum and maximum tank levels: 
 
     $ ./bin/balancer balancer:balance --min-tank-level=1 --max-tank-level=10 --verbose
-   
-## Internals
-
-You can read about about core decisions and thoughts: 
-
-* [Core decisions and thoughts (Russian)](https://github.com/krasun/BattleBalancer/blob/master/doc/ru/core-decisions-and-thoughts.md)
