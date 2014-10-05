@@ -3,3 +3,4 @@
 !/bin/balancer
 /config/parameters.php
 /data/
+/vagrant/.vagrant/

@@ -95,7 +95,6 @@ class BalanceCommand extends Command
     {
         $this
             ->setName('balancer:balance')
-            ->addOption('player-num', null, InputOption::VALUE_REQUIRED)
             ->addOption('min-tank-level', null, InputOption::VALUE_REQUIRED)
             ->addOption('max-tank-level', null, InputOption::VALUE_REQUIRED)
         ;
@@ -157,7 +156,7 @@ class BalanceCommand extends Command
      */
     private function createBattleConfig(InputInterface $input)
     {
-        $requiredPlayerNumPerTeam = $this->getIntOption($input, 'player-num', $this->defaultBattleConfig->getRequiredMemberNumPerTeam());
+        $requiredPlayerNumPerTeam = $this->defaultBattleConfig->getRequiredMemberNumPerTeam();
         $minTankLevel = $this->getIntOption($input, 'min-tank-level', $this->defaultBattleConfig->getMinTankLevel());
         $maxTankLevel = $this->getIntOption($input, 'max-tank-level', $this->defaultBattleConfig->getMaxTankLevel());
 
