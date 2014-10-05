@@ -1,3 +1,4 @@
+#!/bin/sh
 apt-get update
 apt-get install curl
 apt-get install -y php5 php5-cli php5-curl
