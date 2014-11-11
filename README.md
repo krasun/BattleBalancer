@@ -3,6 +3,8 @@
 Balancer finds and balances two teams for ["World of Tanks"](http://worldoftanks.ru/). This application 
 was written for qualification round of ["UA Web Challenge 2014"](http://uawebchallenge.com/).
 
+This solution bought me ticket for [semifinal](http://uawebchallenge.com/news/backend-vi-semifinal).
+
 ## Installation and configuration
 
 ### 1.1. Via [Vagrant](https://www.vagrantup.com/): 
