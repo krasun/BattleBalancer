@@ -1,7 +1,7 @@
 # Battle Balancer
 
 Balancer finds and balances two teams for ["World of Tanks"](http://worldoftanks.ru/). This application 
-is written for qualification round of ["UA Web Challenge 2014"](http://uawebchallenge.com/).
+was written for qualification round of ["UA Web Challenge 2014"](http://uawebchallenge.com/).
 
 ## Installation and configuration
 
